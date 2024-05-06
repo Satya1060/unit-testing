@@ -1,0 +1,48 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Linting code
+        run: |
+          echo "Linting code"
+          pip install pylint pycodestyle
+          pylint devops/dg_atulya_pkg/
+          pycodestyle --show-source --show-pep8 devops/dg_atulya_pkg/*
+    
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      - name: Building application
+        run: |
+          echo "Building application..."
+          cd ./devops/
+          python setup.py sdist
+        # You can upload artifacts using GitHub Actions, but it's usually done as part of deployment
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      - name: Deploy to PyPI
+        run: |
+          echo "Deploying to PyPI"
+          cd ./devops/
+          pip install -U twine
+          twine upload dist/* --username ${{ secrets.PYPI_USER }} --password ${{ secrets.PYPI_PASSWORD }}
+        # This assumes you have your PyPI username and password stored as secrets in your GitHub repository
