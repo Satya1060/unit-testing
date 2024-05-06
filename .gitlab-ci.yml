@@ -1,55 +1,48 @@
+name: CI/CD Pipeline
 
-image: docker:stable
+on:
+  push:
+    branches:
+      - main
 
-stages:
-  - test
-  - build
-  - deploy
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-build-job:
-  image: python:alpine
-  stage: build
-  script:
-    - echo "Building application..."
-    - cd ./devops/
-    - python setup.py sdist
-  tags:
-    - production
-  artifacts:
-    paths:
-      - devops/dist/
-  
+      - name: Linting code
+        run: |
+          echo "Linting code"
+          pip install pylint pycodestyle
+          pylint devops/dg_atulya_pkg/
+          pycodestyle --show-source --show-pep8 devops/dg_atulya_pkg/*
+    
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      - name: Building application
+        run: |
+          echo "Building application..."
+          cd ./devops/
+          python setup.py sdist
+        # You can upload artifacts using GitHub Actions, but it's usually done as part of deployment
 
-
-test-job1:
-  image: python:alpine
-  stage: test
-  script:
-    - echo "Linting code"
-    - pip install pylint pycodestyle
-    - pylint devops/dg_atulya_pkg/
-    - pycodestyle --show-source --show-pep8 devops/dg_atulya_pkg/*
-  tags:
-    - production
-  when: manual
-
-docker-stage:
-  image: python:alpine
-  stage: deploy
-  # services:
-  #  - name: docker:19-dind
-  #   #  entrypoint: ["dockerd-entrypoint.sh", "--tls=false"]
-  # #    alias: thedockerhost
-  # variables:
-  #   DOCKER_HOST: tcp://docker:2375/
-  # #   DOCKER_DRIVER: overlay2
-  # #   DOCKER_TLS_CERTDIR: ""
-  script:
-    - cd ./devops/
-    - pip install -U twine
-    - twine upload dist/* --username $PYPI_USER --password $PYPI_PASSWORDD
-    # - echo "This job deploy docker image to dockerhub"
-    # - docker build -t gitlab-cicd:latest .
-    # - docker push atulyapandey/gitlab-cicd
-  tags:
-    - production
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      - name: Deploy to PyPI
+        run: |
+          echo "Deploying to PyPI"
+          cd ./devops/
+          pip install -U twine
+          twine upload dist/* --username ${{ secrets.PYPI_USER }} --password ${{ secrets.PYPI_PASSWORD }}
+        # This assumes you have your PyPI username and password stored as secrets in your GitHub repository
